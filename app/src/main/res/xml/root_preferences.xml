@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="adminMode"
+        android:title="Admin mode" />
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="lockTaskMode"
+        android:title="Lock Task"
+        app:dependency="adminMode"
+        app:disableDependentsState="true" />
+</PreferenceScreen>

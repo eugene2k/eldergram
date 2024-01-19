@@ -1,0 +1,6 @@
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name">Eldergram</string>
+    <string name="battery_info"><xliff:g name="value">%d</xliff:g>%%</string>
+    <string name="title_activity_settings">SettingsActivity</string>
+    <string name="call">Call</string>
+</resources>
