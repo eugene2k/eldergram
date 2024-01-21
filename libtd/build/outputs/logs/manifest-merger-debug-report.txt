@@ -1,0 +1,30 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:8:1-16:12
+INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:8:1-16:12
+	package
+		INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:8:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:10:5-67
+	android:name
+		ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:10:22-64
+uses-permission#android.permission.WRITE_EXTERNAL_STORAGE
+ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:11:5-81
+	android:name
+		ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:11:22-78
+application
+ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:13:5-15:44
+	android:label
+		ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:15:9-41
+	android:allowBackup
+		ADDED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml:14:9-35
+uses-sdk
+INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml
+INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/me/AndroidStudioProjects/Eldergram/libtd/src/main/AndroidManifest.xml

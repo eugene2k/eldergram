@@ -50,11 +50,26 @@ class SettingsActivity : AppCompatActivity() {
                         dpm.removeActiveAdmin(darComponentName)
                     }
                 }
+
                 "lockTaskMode" -> {
                     if (prefs["lockTaskMode"] as Boolean) {
-                        dpm.setLockTaskPackages(darComponentName, arrayOf(packageName))
+                        try {
+                            dpm.setLockTaskPackages(darComponentName, arrayOf(packageName))
+                        } catch (e: SecurityException) {
+                            e.message?.let { Log.e(APP_NAME, it) }
+                        }
+                        if (dpm.isLockTaskPermitted(packageName)) {
+                            startLockTask()
+                        } else {
+                            Log.e(APP_NAME, "Lock task not permitted")
+                        }
                     } else {
-                        dpm.setLockTaskPackages(darComponentName, arrayOf())
+                        stopLockTask()
+                        try {
+                            dpm.setLockTaskPackages(darComponentName, arrayOf())
+                        } catch (e: SecurityException) {
+                            e.message?.let { Log.e(APP_NAME, it) }
+                        }
                     }
                 }
             }

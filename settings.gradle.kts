@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Eldergram"
-include(":app")
+include(":app", ":libtd")
  
