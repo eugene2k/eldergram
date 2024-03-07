@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="call">Звонить</string>
+    <string name="phone_prompt">Введите телефонный номер</string>
+    <string name="auth_code_prompt">Введите код</string>
+    <string name="submit_phone">Отправить</string>
+    <string name="submit_code">Отправить</string>
+    <string name="key_clear">Очистить</string>
+    <string name="key_delete">Удалить</string>
+    <string name="error_invalid_phone_number">Ошибка: Некорректный номер телефона</string>
+    <string name="error_invalid_code">Ошибка: Неверный код</string>
+</resources>

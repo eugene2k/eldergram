@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.MANAGE_DEVICE_POLICY_LOCK_TASK" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -17,23 +19,40 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Eldergram"
-        tools:targetApi="31">
+        tools:targetApi="31"
+        android:process="com.example.eldergram">
+
+        <activity
+            android:name=".EnterPhoneNumberActivity"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/Theme.AppCompat" />
+        <activity
+            android:name=".EnterAuthCodeActivity"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/Theme.AppCompat" />
         <activity
             android:name=".SettingsActivity"
-            android:parentActivityName=".MainActivity"
             android:exported="false"
             android:label="@string/title_activity_settings"
+            android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.AppCompat" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Eldergram">
+            android:theme="@style/Theme.AppCompat">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".EldergramService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
 
         <receiver
             android:name=".MainActivity$MyDeviceAdminReceiver"
@@ -42,7 +61,6 @@
             <meta-data
                 android:name="android.app.device_admin"
                 android:resource="@xml/device_admin_config" />
-
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>

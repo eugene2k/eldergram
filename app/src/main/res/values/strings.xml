@@ -1,6 +1,26 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="app_name">Eldergram</string>
-    <string name="battery_info"><xliff:g name="value">%d</xliff:g>%%</string>
-    <string name="title_activity_settings">SettingsActivity</string>
+    <string name="app_name" translatable="false">Eldergram</string>
+    <string name="battery_info" translatable="false"><xliff:g name="value">%d</xliff:g>%%</string>
+    <string name="title_activity_settings" translatable="false">SettingsActivity</string>
     <string name="call">Call</string>
+    <string name="phone_prompt">Enter phone number</string>
+    <string name="auth_code_prompt">Enter code</string>
+    <string name="submit_phone">Submit</string>
+    <string name="submit_code">Submit</string>
+    <string name="key_1" translatable="false">1</string>
+    <string name="key_2" translatable="false">2</string>
+    <string name="key_3" translatable="false">3</string>
+    <string name="key_4" translatable="false">4</string>
+    <string name="key_5" translatable="false">5</string>
+    <string name="key_6" translatable="false">6</string>
+    <string name="key_7" translatable="false">7</string>
+    <string name="key_8" translatable="false">8</string>
+    <string name="key_9" translatable="false">9</string>
+    <string name="key_0" translatable="false">0</string>
+    <string name="key_clear">Clear</string>
+    <string name="key_delete">Delete</string>
+    <string name="error_invalid_phone_number">Error: Invalid phone number</string>
+    <string name="error_invalid_code">Error: Invalid authentication code</string>
+    <string name="auth_state_notification" translatable="false">AUTH_STATE_NOTIFICATION</string>
+    <string name="submit_result_notification" translatable="false">SET_STRING_RESULT</string>
 </resources>

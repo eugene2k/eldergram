@@ -2,74 +2,66 @@ package com.example.eldergram
 
 import android.annotation.SuppressLint
 import android.app.admin.DeviceAdminReceiver
-import android.app.admin.DevicePolicyManager
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.provider.ContactsContract
 import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import org.drinkless.td.libcore.telegram.Client
-import org.drinkless.td.libcore.telegram.TdApi
-import kotlin.system.exitProcess
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.runBlocking
+
 
 const val APP_NAME = "eldergram"
 
-class MainActivity : ComponentActivity() {
-    class MyDeviceAdminReceiver : DeviceAdminReceiver()
-
-    class TdClient(updateHandler: Client.ResultHandler) {
-        class ResultHandler(private val query: TdApi.Function) : Client.ResultHandler {
-            override fun onResult(it: TdApi.Object) {
-                when (it.constructor) {
-                    TdApi.Error.CONSTRUCTOR -> {
-                        val err = (it as TdApi.Error)
-                        Log.e(
-                            APP_NAME,
-                            "Error(%d) calling %s: %s".format(
-                                err.code,
-                                query,
-                                err.message
-                            )
-                        )
-                    }
-
-                    TdApi.Ok.CONSTRUCTOR -> {
-                        Log.i(
-                            APP_NAME,
-                            "Calling %s Ok!".format(query)
-                        )
-                    }
-
-                    else -> {
-                        Log.e(APP_NAME, "Unrecognised result: %s".format(it.javaClass.toString()))
-                    }
-                }
-            }
-        }
-
-        private val mClient: Client = Client.create(updateHandler, null, null)
-        fun send(query: TdApi.Function) {
-            mClient.send(query, ResultHandler(query))
-        }
-
-        fun send(query: TdApi.Function, resultHandler: Client.ResultHandler) {
-            mClient.send(query, resultHandler)
-        }
+class Logger(private val ctx: Context) {
+    fun i(s: String) {
+        val tag = "%s::%s".format(ctx.packageName, ctx.javaClass.name)
+        Log.i(tag, s)
     }
 
+    fun e(s: String) {
+        val tag = "%s::%s".format(ctx.packageName, ctx.javaClass.name)
+        Log.e(tag, s)
+    }
+}
+
+class MainActivity : AppCompatActivity() {
+    class MyDeviceAdminReceiver : DeviceAdminReceiver()
+
+    private var service: EldergramService? = null
+
+    val mLog = Logger(this)
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            this@MainActivity.service = (service as EldergramService.ServiceBinder).service
+
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            this@MainActivity.service = null
+        }
+    }
     private val mCountDownTimer = object : CountDownTimer(5000, 5500) {
         override fun onFinish() {
             val intent = Intent(this@MainActivity, SettingsActivity::class.java)
@@ -80,94 +72,92 @@ class MainActivity : ComponentActivity() {
             TODO("Not yet implemented")
         }
     }
-    private val authCode = ""
-    private val updateHandler: Client.ResultHandler = Client.ResultHandler {
-        Log.i(APP_NAME, "Received update message: %s".format(it))
-        when (it.constructor) {
-            TdApi.UpdateAuthorizationState.CONSTRUCTOR -> {
-                val authState = (it as TdApi.UpdateAuthorizationState).authorizationState
+    private val batteryLowReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val tv = findViewById<TextView>(R.id.battery_info)
+            tv.setTextColor(Color.RED)
+        }
+    }
+    private val batteryChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val tv = findViewById<TextView>(R.id.battery_info)
+            var batteryCharge = 0
+            if (intent != null) {
+                batteryCharge = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
+            }
+            tv.text = getString(R.string.battery_info).format(batteryCharge)
+        }
+    }
+    private val batteryOkayReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val tv = findViewById<TextView>(R.id.battery_info)
+            tv.setTextColor(Color.WHITE)
+        }
+    }
 
-                when (authState.constructor) {
-                    TdApi.AuthorizationStateWaitTdlibParameters.CONSTRUCTOR -> {
-                        val params = TdApi.TdlibParameters()
-                        params.apiHash = "5d0453b7ad9d9e6e510e942f1cb41441"
-                        params.apiId = 21061468
-                        params.deviceModel = "Phone"
-                        params.applicationVersion = "1.0"
-                        params.useFileDatabase = false
-                        params.useChatInfoDatabase = false
-                        params.useMessageDatabase = false
-                        params.useSecretChats = false
-                        params.databaseDirectory = applicationContext.dataDir.absolutePath
-                        params.enableStorageOptimizer = true
-                        params.systemLanguageCode = "en"
-                        params.useTestDc = true
-                        mClient.send(TdApi.SetTdlibParameters(params))
-                    }
-
-                    TdApi.AuthorizationStateWaitEncryptionKey.CONSTRUCTOR -> {
-                        mClient.send(TdApi.CheckDatabaseEncryptionKey())
-                    }
-
-                    TdApi.AuthorizationStateWaitPhoneNumber.CONSTRUCTOR -> {
-                        val phoneNumber = "+37281618658"
-                        mClient.send(
-                            TdApi.SetAuthenticationPhoneNumber(phoneNumber, null)
+    private val updatesReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            mLog.i("Received ${EldergramService.UPDATE_INTENT}")
+            intent?.getIntExtra("STATE", -1)?.let {
+                when (it) {
+                    EldergramService.ClientState.AuthWaitPhone.ordinal -> {
+                        mLog.i("Starting phone number activity")
+                        context?.startActivity(
+                            Intent(
+                                context,
+                                EnterPhoneNumberActivity::class.java
+                            )
                         )
                     }
 
-                    TdApi.AuthorizationStateWaitCode.CONSTRUCTOR -> {
-                        val codeInfo = (authState as TdApi.AuthorizationStateWaitCode).codeInfo
-//                        mClient.send(TdApi.ResendAuthenticationCode())
-//                        when (codeInfo.type.constructor) {
-//
-//                        }
-//                        mClient.send(TdApi.CheckAuthenticationCode(authCode))
-//                        {
-//                            when (it.constructor) {
-//                                TdApi.AuthenticationCodeTypeTelegramMessage.CONSTRUCTOR -> {
-//
-//                                }
-//                            }
-//                        }
+                    EldergramService.ClientState.AuthWaitCode.ordinal -> {
+                        mLog.i("Starting auth code activity")
+                        context?.startActivity(
+                            Intent(
+                                context,
+                                EnterAuthCodeActivity::class.java
+                            )
+                        )
+                    }
+
+                    EldergramService.ClientState.Ready.ordinal -> {
+                        mLog.i("Starting main activity")
+                        context?.startActivity(
+                            Intent(
+                                context,
+                                MainActivity::class.java
+                            )
+                        )
                     }
 
                     else -> {
-                        Log.e(APP_NAME, "Unhandled authorization state!")
-//                        exitProcess(0)
+                        mLog.e("Error: Invalid ClientState")
                     }
                 }
             }
         }
     }
-    private val mClient = TdClient(updateHandler)
 
-    @SuppressLint("ClickableViewAccessibility")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.contacts_list)
-        registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val tv = findViewById<TextView>(R.id.battery_info)
-                var batteryCharge = 0
-                if (intent != null) {
-                    batteryCharge = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
-                }
-                tv.text = getString(R.string.battery_info).format(batteryCharge)
-            }
-        }, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val tv = findViewById<TextView>(R.id.battery_info)
-                tv.setTextColor(Color.RED)
-            }
-        }, IntentFilter(Intent.ACTION_BATTERY_LOW))
-        registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val tv = findViewById<TextView>(R.id.battery_info)
-                tv.setTextColor(Color.WHITE)
-            }
-        }, IntentFilter(Intent.ACTION_BATTERY_OKAY))
+        ContextCompat.registerReceiver(
+            this,
+            updatesReceiver,
+            IntentFilter(EldergramService.UPDATE_INTENT),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(Intent(this, EldergramService::class.java))
+        } else {
+            startService(Intent(this, EldergramService::class.java))
+        }
+        bindService(
+            Intent(this, EldergramService::class.java),
+            serviceConnection,
+            Context.BIND_AUTO_CREATE
+        )
+
         if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_DENIED) {
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
                 if (!isGranted) {
@@ -176,56 +166,127 @@ class MainActivity : ComponentActivity() {
                         "The app was not allowed to read your contacts",
                         Toast.LENGTH_LONG
                     ).show()
-                    exitProcess(0)
+                    finish()
+                } else {
+                    initialize()
                 }
             }.launch(android.Manifest.permission.READ_CONTACTS)
+        } else {
+            initialize()
         }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    fun initialize() {
+        setContentView(R.layout.contacts_list)
+        registerReceiver(batteryChangedReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        registerReceiver(batteryLowReceiver, IntentFilter(Intent.ACTION_BATTERY_LOW))
+        registerReceiver(batteryOkayReceiver, IntentFilter(Intent.ACTION_BATTERY_OKAY))
         val recycler = findViewById<RecyclerView>(R.id.contacts)
         recycler.layoutManager = LinearLayoutManager(this)
         val adapter = ListAdapter()
-
-        adapter.addItem(ListAdapter.Item("test", 0))
+        setContacts(adapter)
         recycler.adapter = adapter
         recycler.setOnTouchListener { _, event ->
             if (event?.action == MotionEvent.ACTION_DOWN) {
-                Log.i(APP_NAME, "Start timer")
+                mLog.i("Start timer")
                 mCountDownTimer.start()
-            } else if (event?.action == MotionEvent.ACTION_DOWN) {
-                Log.i(APP_NAME, "Stop timer")
+            } else if (event?.action == MotionEvent.ACTION_UP) {
+                mLog.i("Stop timer")
                 mCountDownTimer.cancel()
             }
             true
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(updatesReceiver)
+        unregisterReceiver(batteryChangedReceiver)
+        unregisterReceiver(batteryLowReceiver)
+        unregisterReceiver(batteryOkayReceiver)
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
-                Log.i(APP_NAME, "Volume Up key is pressed")
+                mLog.i("Volume Up key is pressed")
             }
 
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                Log.i(APP_NAME, "Volume Down key is pressed")
+                mLog.i("Volume Down key is pressed")
             }
 
             KeyEvent.KEYCODE_BACK -> {
-                Log.i(APP_NAME, "Back key is pressed")
+                mLog.i("Back key is pressed")
             }
 
             KeyEvent.KEYCODE_RECENT_APPS -> {
-                Log.i(APP_NAME, "Recent Apps key is pressed")
+                mLog.i("Recent Apps key is pressed")
             }
 
             KeyEvent.KEYCODE_HOME -> {
-                Log.i(APP_NAME, "Home key is pressed")
+                mLog.i("Home key is pressed")
             }
 
             KeyEvent.KEYCODE_APP_SWITCH -> {
-                Log.i(APP_NAME, "App Switch key is pressed")
+                mLog.i("App Switch key is pressed")
             }
 
             else -> return super.onKeyDown(keyCode, event)
         }
         return true
+    }
+
+    private fun setContacts(adapter: ListAdapter) {
+        val contacts = arrayListOf<EldergramService.Contact>()
+        val displayNames = arrayListOf<String>()
+        val contactsCursor = contentResolver.query(
+            ContactsContract.Data.CONTENT_URI,
+            arrayOf(
+                ContactsContract.Data.CONTACT_ID,
+                ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME,
+                ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME,
+                ContactsContract.Data.DISPLAY_NAME
+            ), null, null, null
+        )
+        contactsCursor?.let {
+            while (contactsCursor.moveToNext()) {
+                val contactId = contactsCursor.getInt(0)
+                val firstName = contactsCursor.getString(1)
+                val lastName = contactsCursor.getString(2)
+                val displayName = contactsCursor.getString(3)
+                displayNames.add(displayName)
+                val phoneNumbersCursor = contentResolver.query(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    arrayOf(
+                        ContactsContract.CommonDataKinds.Phone.NUMBER
+                    ), "${ContactsContract.Data.CONTACT_ID}=?", arrayOf(contactId.toString()), null
+                )
+                val numbers = ArrayList<Pair<String, Long>>()
+                phoneNumbersCursor?.let { cursor ->
+                    while (phoneNumbersCursor.moveToNext()) {
+                        numbers.add(Pair(phoneNumbersCursor.getString(0), 0))
+                    }
+                    cursor.close()
+                }
+                contacts.add(EldergramService.Contact(firstName, lastName, numbers.toTypedArray()))
+            }
+            it.close()
+        }
+
+        val handler = Handler(Looper.getMainLooper())
+        service?.importContacts(contacts.toTypedArray()) { contactIds ->
+            handler.post {
+                val pairs = displayNames.zip(contactIds).map {
+                    Pair(it.first, it.second.filter { it != 0 })
+                }.filter {
+                    it.second.isNotEmpty()
+                }
+                pairs.forEach {
+                    adapter.addItem(ListAdapter.Item(it.first, it.second[0]))
+                }
+            }
+        }
     }
 }

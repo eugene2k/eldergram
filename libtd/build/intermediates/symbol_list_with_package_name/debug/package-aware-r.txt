@@ -1,2 +1,0 @@
-com.example.td
-string app_name
